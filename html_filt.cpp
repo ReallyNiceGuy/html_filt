@@ -2,8 +2,10 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <memory>
+#include <cstring>
 #include "html_list.hpp"
 
 using namespace std::literals;
@@ -308,7 +310,51 @@ void decode(std::istream &in, std::ostream &out)
   }
 }
 
-int main(int argc, char**argv)
+void usage(std::ostream &out, std::string_view app)
 {
-  decode(std::cin, std::cout);
+  out << "Usage:\n  " << app << " [infile [outfile]]\n";
+}
+
+int main(int argc, char** argv) 
+{
+  if (argc == 1)
+  {
+      decode(std::cin, std::cout);
+  }
+  else if (argc == 2 || argc == 3)
+  {
+    if ("-h"sv ==  argv[1] || (argc == 3 && "-h"sv == argv[2]))
+    {
+      usage(std::cout, argv[0]);
+      return 0;
+    }
+    auto in = std::ifstream(argv[1]);
+    if (in.good())
+    {
+      if (argc == 3)
+      {
+        std::ofstream out(argv[2]);
+        if (!out.good())
+        {
+          std::cerr  << argv[0] << ": " <<argv[2] << ": " << std::strerror(errno) << "\n";
+          return 2;
+        }
+        decode(in, out);
+      }
+      else
+        decode(in, std::cout);
+    }
+    else
+    {
+      std::cerr  << argv[0] << ": " <<argv[1] << ": " << std::strerror(errno) << "\n";
+      return 1;
+    }
+  }
+  else
+  {
+    std::cerr  << argv[0] << ": Too many parameters\n\n";
+    usage(std::cerr, argv[0]);
+    return 3;
+  }
+  return 0;
 }
