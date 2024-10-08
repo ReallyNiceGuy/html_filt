@@ -35,19 +35,19 @@ std::vector<std::shared_ptr<Node>> create_search_vector_of_nodes()
     node = std::make_shared<Node>();
   for(auto &&item: html_entities)
   {
-    auto first_char = item.first[0];
+    auto first_char = item.key[0];
 
     auto result = root[ch_to_idx(first_char)];
-    for(std::size_t i = 1; item.first[i] != 0; ++i)
+    for(std::size_t i = 1; item.key[i] != 0; ++i)
     {
-        auto ch = item.first[i];
+        auto ch = item.key[i];
         if (!result->children.contains(ch))
         {
             result->children[ch] = std::make_shared<Node>();
         }
         result = result->children.at(ch);
     }
-    result->value = item.second;
+    result->value = item.value;
   }
   return root;
 }

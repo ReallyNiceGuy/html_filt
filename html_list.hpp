@@ -1,10 +1,13 @@
 #ifndef HTML_LIST_HPP
 #define HTML_LIST_HPP
-#include <utility>
 
-using StringMap = std::pair<const char*, const char*>;
+struct EntityPair
+{
+  const char* key{};
+  const char* value{};
+};
 
-static constexpr StringMap html_entities[] = {
+static constexpr EntityPair html_entities[] = {
   {"AElig", "\u00c6"},
   {"AElig;", "\u00c6"},
   {"AMP", "&"},
