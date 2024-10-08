@@ -4,7 +4,6 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include <memory>
 #include <cstring>
 #include "html_list.hpp"
 
@@ -13,13 +12,13 @@ using namespace std::literals;
 struct Node
 {
   const char* value{nullptr} ;
-  std::map<char, std::shared_ptr<Node>> children{};
+  std::map<char, Node> children{};
 };
 
 Node create_search_tree();
-std::vector<std::shared_ptr<Node>> create_search_vector_of_nodes();
+std::vector<Node> create_search_vector_of_nodes();
 
-static const std::vector<std::shared_ptr<Node>> html_entities_vector_of_nodes = create_search_vector_of_nodes();
+static const std::vector<Node> html_entities_vector_of_nodes = create_search_vector_of_nodes();
 
 int ch_to_idx(const char ch)
 {
@@ -28,24 +27,18 @@ int ch_to_idx(const char ch)
   return base + (((ch & 0x20) >> 5) * 26);
 }
 
-std::vector<std::shared_ptr<Node>> create_search_vector_of_nodes()
+std::vector<Node> create_search_vector_of_nodes()
 {
-  std::vector<std::shared_ptr<Node>> root(52);
-  for (auto &&node: root)
-    node = std::make_shared<Node>();
+  std::vector<Node> root(52);
   for(auto &&item: html_entities)
   {
     auto first_char = item.key[0];
 
-    auto result = root[ch_to_idx(first_char)];
+    auto result = &root[ch_to_idx(first_char)];
     for(std::size_t i = 1; item.key[i] != 0; ++i)
     {
         auto ch = item.key[i];
-        if (!result->children.contains(ch))
-        {
-            result->children[ch] = std::make_shared<Node>();
-        }
-        result = result->children.at(ch);
+        result = &result->children[ch];
     }
     result->value = item.value;
   }
@@ -65,7 +58,7 @@ void dump_tree(const Node& node, int indent=0)
     {
       std::cout << "'" << item.first << "', \n";
       for (int i=0; i < indent; ++i) std::cout << " ";
-      dump_tree(*item.second, indent+1);
+      dump_tree(item.second, indent+1);
     }
     std::cout << " }";
     std::cout << " },\n";
@@ -176,7 +169,7 @@ void decode(std::istream &in, std::ostream &out)
           state = EXPECT_CHAR;
           entity += ch;
           // Make search_point the corresponding Node for this block of entities
-          search_point = html_entities_vector_of_nodes[ch_idx].get();
+          search_point = &html_entities_vector_of_nodes[ch_idx];
           // Get next char
           continue;
         }
@@ -269,7 +262,7 @@ void decode(std::istream &in, std::ostream &out)
         {
           entity += ch;
           // Make search_point be the underlying Node
-          search_point = it->second.get();
+          search_point = &it->second;
           // Get next char
           continue;
         }
