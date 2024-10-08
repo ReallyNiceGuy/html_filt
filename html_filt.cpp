@@ -12,7 +12,7 @@ using namespace std::literals;
 
 struct Node
 {
-  std::string_view value{} ;
+  const char* value{nullptr} ;
   std::map<char, std::shared_ptr<Node>> children{};
 };
 
@@ -38,7 +38,7 @@ std::vector<std::shared_ptr<Node>> create_search_vector_of_nodes()
     auto first_char = item.first[0];
 
     auto result = root[ch_to_idx(first_char)];
-    for(std::size_t i = 1; i < item.first.size(); ++i)
+    for(std::size_t i = 1; item.first[i] != 0; ++i)
     {
         auto ch = item.first[i];
         if (!result->children.contains(ch))
@@ -55,9 +55,9 @@ std::vector<std::shared_ptr<Node>> create_search_vector_of_nodes()
 void dump_tree(const Node& node, int indent=0)
 {
     std::cout << "{ \"";
-    for(auto &&val: node.value)
+    for(int i=0; node.value[i] != 0; ++i)
     {
-     std::printf("\\x%02x", (unsigned char)val);
+     std::printf("\\x%02x", (unsigned char)node.value[i]);
     }
     std::cout << "\"sv,";
     std::cout << " { ";
@@ -275,7 +275,7 @@ void decode(std::istream &in, std::ostream &out)
         }
         state = DEFAULT;
         // Does the current Node define a valid entity?
-        if (search_point->value.empty()) // No
+        if (search_point->value == nullptr) // No
         {
           // Just copy the original content into the result
           out << header;
