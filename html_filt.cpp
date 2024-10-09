@@ -5,15 +5,89 @@
 #include <fstream>
 #include <algorithm>
 #include <cstring>
+#include <boost/format.hpp>
 #include "html_list.hpp"
 
 using namespace std::literals;
+struct Node;
+std::ostream& dump_map(std::ostream& out, const std::map<char, Node>& the_map, int indent=0);
+std::ostream& dump_node(std::ostream& out, const Node& node, int indent=0);
 
 struct Node
 {
-  const char* value{nullptr} ;
+  const char* value{nullptr};
   std::map<char, Node> children{};
 };
+
+std::ostream& dump_node(std::ostream& out, const Node& node, int indent)
+{
+  out << "{";
+  if (node.value)
+  {
+    out << "\"";
+    for (int i = 0; node.value[i] !=0 ; ++i)
+    {
+      out << boost::format("\\x%|02x|") % ((int)node.value[i]&0xff);
+    }
+    out << "\"";
+  }
+  else
+  {
+    out << "nullptr";
+  }
+  out << ", ";
+  dump_map(out, node.children, indent+2);
+  out << "}";
+  return out;
+}
+
+std::ostream& dump_map(std::ostream& out, const std::map<char, Node>& the_map, int indent)
+{
+  out << "{";
+  if (the_map.size())
+  {
+    out << "\n";
+    auto last = --the_map.end();
+    for(auto it = the_map.begin(); it != the_map.end(); ++it)
+    {
+      for (int i=0;i<indent;++i) out << " ";
+      out << "{'" << it->first << "', ";
+      dump_node(out, it->second, indent);
+      out << "}";
+      if (it != last)
+      {
+        out << ",\n";
+      }
+    }
+  }
+  out << "}";
+  return out;
+}
+
+std::ostream& dump_vector_of_nodes(std::ostream& out, const std::vector<Node>& vec, int indent=0)
+{
+  out << "{\n";
+  char i=0;
+  for(auto&& item: vec)
+  {
+    out << "//";
+    if (i<26)
+    {
+      out << (char)('A'+i);
+    }
+    else
+    {
+      out << (char)(71+i);
+    }
+    out << "\n";
+    for (int i=0;i<indent;++i) out << " ";
+    dump_node(out, item, indent);
+    out<< ",\n";
+    ++i;
+  }
+  out << "};\n";
+  return out;
+}
 
 Node create_search_tree();
 std::vector<Node> create_search_vector_of_nodes();
@@ -32,37 +106,17 @@ std::vector<Node> create_search_vector_of_nodes()
   std::vector<Node> root(52);
   for(auto &&item: html_entities)
   {
-    auto first_char = item.key[0];
+    const auto first_char = item.key[0];
 
     auto result = &root[ch_to_idx(first_char)];
     for(std::size_t i = 1; item.key[i] != 0; ++i)
     {
-        auto ch = item.key[i];
+        const auto ch = item.key[i];
         result = &result->children[ch];
     }
     result->value = item.value;
   }
   return root;
-}
-
-void dump_tree(const Node& node, int indent=0)
-{
-    std::cout << "{ \"";
-    for(int i=0; node.value[i] != 0; ++i)
-    {
-     std::printf("\\x%02x", (unsigned char)node.value[i]);
-    }
-    std::cout << "\"sv,";
-    std::cout << " { ";
-    for(auto &&item: node.children)
-    {
-      std::cout << "'" << item.first << "', \n";
-      for (int i=0; i < indent; ++i) std::cout << " ";
-      dump_tree(item.second, indent+1);
-    }
-    std::cout << " }";
-    std::cout << " },\n";
-    for (int i=0; i < indent-2; ++i) std::cout << " ";
 }
 
 void unicode_to_utf8(char32_t codepoint, std::ostream& out)
@@ -319,6 +373,11 @@ int main(int argc, char** argv)
     if ("-h"sv ==  argv[1] || (argc == 3 && "-h"sv == argv[2]))
     {
       usage(std::cout, argv[0]);
+      return 0;
+    }
+    if ("-d"sv ==  argv[1] || (argc == 3 && "-d"sv == argv[2]))
+    {
+      dump_vector_of_nodes(std::cout, html_entities_vector_of_nodes, 2);
       return 0;
     }
     auto in = std::ifstream(argv[1]);
