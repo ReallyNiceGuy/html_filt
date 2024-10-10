@@ -1,122 +1,72 @@
 #include <string>
-#include <map>
-#include <vector>
 #include <iostream>
 #include <fstream>
-#include <algorithm>
 #include <cstring>
-#include <boost/format.hpp>
 #include "html_list.hpp"
 
 using namespace std::literals;
-struct Node;
-std::ostream& dump_map(std::ostream& out, const std::map<char, Node>& the_map, int indent=0);
-std::ostream& dump_node(std::ostream& out, const Node& node, int indent=0);
 
-struct Node
+constexpr int partial_compare(const std::string_view item, const std::string_view partial, int ch)
 {
-  const char* value{nullptr};
-  std::map<char, Node> children{};
-};
-
-std::ostream& dump_node(std::ostream& out, const Node& node, int indent)
-{
-  out << "{";
-  if (node.value)
+  int result = item.compare(0, partial.size(), partial);
+  if (result == 0)
   {
-    out << "\"";
-    for (int i = 0; node.value[i] !=0 ; ++i)
+    if (item.size() > partial.size())
     {
-      out << boost::format("\\x%|02x|") % ((int)node.value[i]&0xff);
+      return (unsigned char)item[partial.size()] - ch;
     }
-    out << "\"";
+    return -1;
   }
-  else
-  {
-    out << "nullptr";
-  }
-  out << ", ";
-  dump_map(out, node.children, indent+2);
-  out << "}";
-  return out;
+  return result;
 }
 
-std::ostream& dump_map(std::ostream& out, const std::map<char, Node>& the_map, int indent)
+constexpr int binary_search(const std::string_view partial, int ch, int &orig_low, int &orig_high)
 {
-  out << "{";
-  if (the_map.size())
-  {
-    out << "\n";
-    auto last = --the_map.end();
-    for(auto it = the_map.begin(); it != the_map.end(); ++it)
-    {
-      for (int i=0;i<indent;++i) out << " ";
-      out << "{'" << it->first << "', ";
-      dump_node(out, it->second, indent);
-      out << "}";
-      if (it != last)
-      {
-        out << ",\n";
-      }
-    }
-  }
-  out << "}";
-  return out;
-}
+  int low = orig_low;
+  int high = orig_high;
 
-std::ostream& dump_vector_of_nodes(std::ostream& out, const std::vector<Node>& vec, int indent=0)
-{
-  out << "{\n";
-  char i=0;
-  for(auto&& item: vec)
-  {
-    out << "//";
-    if (i<26)
+  while (low <= high) {
+    int mid = low + (high - low) / 2;
+
+    int comp_result = partial_compare(html_entities[mid].key, partial, ch);
+    if (comp_result == 0)
     {
-      out << (char)('A'+i);
+      orig_low = mid;
+      orig_high = high;
+      return 1; // found a target element
+    }
+    else if (comp_result < 0)
+    {
+        low = mid + 1; // search in the upper half
     }
     else
     {
-      out << (char)(71+i);
+        high = mid - 1; // search in the lower half
     }
-    out << "\n";
-    for (int i=0;i<indent;++i) out << " ";
-    dump_node(out, item, indent);
-    out<< ",\n";
-    ++i;
   }
-  out << "};\n";
-  return out;
+  return 0; // target not found
 }
 
-Node create_search_tree();
-std::vector<Node> create_search_vector_of_nodes();
-
-static const std::vector<Node> html_entities_vector_of_nodes = create_search_vector_of_nodes();
-
-int ch_to_idx(const char ch)
+constexpr int find_first_of(const std::string_view partial, int ch, int &low, int &high)
 {
-  int base = (ch & ~0x20) - 'A';
-  if (base < 0 || base > 25) return -1;
-  return base + (((ch & 0x20) >> 5) * 26);
-}
-
-std::vector<Node> create_search_vector_of_nodes()
-{
-  std::vector<Node> root(52);
-  for(auto &&item: html_entities)
+  if (ch == std::istream::traits_type::eof()) return false;
+  int new_low = low;
+  if (binary_search(partial, ch, new_low, high))
   {
-    const auto first_char = item.key[0];
-
-    auto result = &root[ch_to_idx(first_char)];
-    for(std::size_t i = 1; item.key[i] != 0; ++i)
+    // Found a target element
+    int new_high{new_low - 1};
+    int maybe_low{low};
+    while (binary_search(partial, ch, maybe_low, new_high))
     {
-        const auto ch = item.key[i];
-        result = &result->children[ch];
+      // Found another target element, lower in the list
+      new_low = maybe_low;
+      new_high = maybe_low - 1;
+      maybe_low = low;
     }
-    result->value = item.value;
+    low = new_low;
+    return 1;
   }
-  return root;
+  return 0;
 }
 
 void unicode_to_utf8(char32_t codepoint, std::ostream& out)
@@ -198,7 +148,8 @@ void decode(std::istream &in, std::ostream &out)
   } state{DEFAULT};
   std::string header;
   std::string entity;
-  Node const * search_point{};
+  int low{};
+  int high{};
 
   while(true)
   {
@@ -215,15 +166,14 @@ void decode(std::istream &in, std::ostream &out)
           // Get next char
           continue;
         }
-        auto ch_idx = ch_to_idx(ch);
+        low = 0;
+        high = html_entities_size - 1;
         // Is this a valid first character for an entity?
-        if (ch_idx != -1)
+        if (find_first_of(entity, ch, low, high))
         {
           //Yes
           state = EXPECT_CHAR;
           entity += ch;
-          // Make search_point the corresponding Node for this block of entities
-          search_point = &html_entities_vector_of_nodes[ch_idx];
           // Get next char
           continue;
         }
@@ -310,19 +260,16 @@ void decode(std::istream &in, std::ostream &out)
       break;
     case EXPECT_CHAR:
       {
-        auto it = search_point->children.find(ch);
-        // Does this character appear under this Node?
-        if (it != search_point->children.end())
+        // Does this character is part of a valid entity?
+        if (find_first_of(entity, ch, low, high))
         {
           entity += ch;
-          // Make search_point be the underlying Node
-          search_point = &it->second;
           // Get next char
           continue;
         }
         state = DEFAULT;
-        // Does the current Node define a valid entity?
-        if (search_point->value == nullptr) // No
+        // Is this entity complete?
+        if (html_entities[low].key != entity) // No
         {
           // Just copy the original content into the result
           out << header;
@@ -332,7 +279,7 @@ void decode(std::istream &in, std::ostream &out)
         else // Yes
         {
           // Insert the entity into the result
-          out << search_point->value;
+          out << html_entities[low].value;
           // Process this character at the end
         }
       }
@@ -373,11 +320,6 @@ int main(int argc, char** argv)
     if ("-h"sv ==  argv[1] || (argc == 3 && "-h"sv == argv[2]))
     {
       usage(std::cout, argv[0]);
-      return 0;
-    }
-    if ("-d"sv ==  argv[1] || (argc == 3 && "-d"sv == argv[2]))
-    {
-      dump_vector_of_nodes(std::cout, html_entities_vector_of_nodes, 2);
       return 0;
     }
     auto in = std::ifstream(argv[1]);

@@ -1,12 +1,15 @@
 #ifndef HTML_LIST_HPP
 #define HTML_LIST_HPP
 
+#include <string_view>
+
 struct EntityPair
 {
-  const char* key{};
+  const std::string_view key{};
   const char* value{};
 };
 
+// Must be kept in alphabetical order by key
 static constexpr EntityPair html_entities[] = {
   {"AElig", "\u00c6"},
   {"AElig;", "\u00c6"},
@@ -2239,5 +2242,8 @@ static constexpr EntityPair html_entities[] = {
   {"zscr;", "\U0001d4cf"},
   {"zwj;", "\u200d"},
   {"zwnj;", "\u200c"}
-  };
+};
+
+constexpr static int html_entities_size =  (sizeof(html_entities)/sizeof(EntityPair));
+
 #endif //HTML_LIST_HPP
