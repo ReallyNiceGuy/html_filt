@@ -22,6 +22,13 @@ constexpr int partial_compare(const std::string_view item, const std::string_vie
 
 constexpr int binary_search(const std::string_view partial, int ch, int &orig_low, int &orig_high)
 {
+  // It is very likely that the item is the first one
+  // test it first
+  if (orig_low <= orig_high && partial_compare(html_entities[orig_low].key, partial, ch) == 0)
+  {
+    return 1;
+  }
+
   int low = orig_low;
   int high = orig_high;
 
