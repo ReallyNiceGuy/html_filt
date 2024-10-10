@@ -54,7 +54,7 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
   return 0; // target not found
 }
 
-int find_first_of(const std::string_view partial, int ch, int &low, int &high)
+constexpr int find_first_of(const std::string_view partial, int ch, int &low, int &high)
 {
   if (ch == std::istream::traits_type::eof()) return false;
   // If limits are the same
@@ -67,16 +67,29 @@ int find_first_of(const std::string_view partial, int ch, int &low, int &high)
   // This mimimizes searches on the binary_search algorithm later on
   if (partial.size() == 0)
   {
-    if (ch > 'A')
+    if ((ch & 0x20) > 'A' && (ch & 0x20) < 'Z')
     {
       int tmp_high = high;
       binary_search(partial, ch - 1, low, tmp_high);
-    }
-    if (ch < 'z')
-    {
-      int tmp_high = high;
+      tmp_high = high;
       high = low;
       binary_search(partial, ch + 1, high, tmp_high);
+    }
+    else if (ch == 'a')
+    {
+      int tmp_high = high;
+      binary_search(partial, 'Z', low, tmp_high);
+      tmp_high = high;
+      high = low;
+      binary_search(partial, 'b', high, tmp_high);
+    }
+    else if (ch == 'Z')
+    {
+      int tmp_high = high;
+      binary_search(partial, 'Y', low, tmp_high);
+      tmp_high = high;
+      high = low;
+      binary_search(partial, 'a', high, tmp_high);
     }
   }
 
