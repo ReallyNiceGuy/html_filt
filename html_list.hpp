@@ -1238,7 +1238,7 @@ static constexpr EntityPair html_entities[] = {
   {"isinE;", "\u22f9"},
   {"isindot;", "\u22f5"},
   {"isins;", "\u22f4"},
-  {"isin;", "\u22f3"},
+  {"isinsv;", "\u22f3"},
   {"isinv;", "\u2208"},
   {"it;", "\u2062"},
   {"itilde;", "\u0129"},
