@@ -47,16 +47,40 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
   return 0; // target not found
 }
 
-constexpr int find_first_of(const std::string_view partial, int ch, int &low, int &high)
+int find_first_of(const std::string_view partial, int ch, int &low, int &high)
 {
   if (ch == std::istream::traits_type::eof()) return false;
+  // If limits are the same
+  if (low == high)
+  {
+    // Just compare the last character of the entity, everything else already matched before
+    return html_entities[low].key.size() > partial.size() && html_entities[low].key[partial.size()] == ch;
+  }
+  // Find better limits for the first character
+  // This mimimizes searches on the binary_search algorithm later on
+  if (partial.size() == 0)
+  {
+    if (ch > 'A')
+    {
+      int tmp_high = high;
+      binary_search(partial, ch - 1, low, tmp_high);
+    }
+    if (ch < 'z')
+    {
+      int tmp_high = high;
+      high = low;
+      binary_search(partial, ch + 1, high, tmp_high);
+    }
+  }
+
   int new_low = low;
   if (binary_search(partial, ch, new_low, high))
   {
     // Found a target element
     int new_high{new_low - 1};
     int maybe_low{low};
-    while (binary_search(partial, ch, maybe_low, new_high))
+    // Only try to find a lower one if the limits are different
+    while (new_low != high && binary_search(partial, ch, maybe_low, new_high))
     {
       // Found another target element, lower in the list
       new_low = maybe_low;
