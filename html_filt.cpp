@@ -6,6 +6,25 @@
 
 using namespace std::literals;
 
+#define is_valid_first_entity_char(ch_) ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+
+#define is_valid_entity_char(ch_) ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == ';')
+
+#define is_digit(ch_) (ch_ >= '0' && ch_ <= '9')
+
+#define is_hex_digit(ch_) \
+   ((ch_ >= '0' && ch_ <= '9') || \
+   ((ch_ & ~0x20)  >= 'A' && (ch_ & ~0x20) <= 'F'))
+
+#define is_hex_marker(ch_) ((ch_ & ~0x20) == 'X')
+
+#define is_numeric_marker(ch_) (ch_ == '#')
+
+#define is_entity_begin(ch_) (ch_ == '&')
+
+#define is_entity_terminator(ch_) (ch_ == ';')
+
+
 constexpr int partial_compare(const std::string_view item, const std::string_view partial, int ch)
 {
   int result = item.compare(0, partial.size(), partial);
@@ -56,7 +75,6 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
 
 constexpr int find_first_of(const std::string_view partial, int ch, int &low, int &high)
 {
-  if (ch == std::istream::traits_type::eof()) return false;
   // If limits are the same
   if (low == high)
   {
@@ -67,6 +85,8 @@ constexpr int find_first_of(const std::string_view partial, int ch, int &low, in
   // This mimimizes searches on the binary_search algorithm later on
   if (partial.size() == 0)
   {
+    // Must start with a alphabetical character
+    if (ch < 'A') return 0;
     if (ch == 'a')
     {
       int tmp_high = high;
@@ -74,40 +94,35 @@ constexpr int find_first_of(const std::string_view partial, int ch, int &low, in
       tmp_high = high;
       high = low;
       binary_search(partial, 'b', high, tmp_high);
-      return 1;
     }
-    if (ch == 'Z')
+    else if (ch == 'Z')
     {
       int tmp_high = high;
       binary_search(partial, 'Y', low, tmp_high);
       tmp_high = high;
       high = low;
       binary_search(partial, 'a', high, tmp_high);
-      return 1;
     }
-    if (ch == 'z')
+    else if (ch == 'z')
     {
       int tmp_high = high;
       binary_search(partial, 'y', low, tmp_high);
-      return 1;
     }
-    if (ch == 'A')
+    else if (ch == 'A')
     {
       int tmp_high = high;
       high = low;
       binary_search(partial, 'B', high, tmp_high);
-      return 1;
     }
-    if ((ch & ~0x20) > 'A' && (ch & ~0x20) < 'Z')
+    else
     {
       int tmp_high = high;
       binary_search(partial, ch - 1, low, tmp_high);
       tmp_high = high;
       high = low;
       binary_search(partial, ch + 1, high, tmp_high);
-      return 1;
     }
-    return 0;
+    return 1;
   }
 
   int new_low = low;
@@ -182,20 +197,6 @@ void insert_hex_entity_into_result(const std::string& codepoint, std::ostream& o
   unicode_to_utf8(i, out);
 }
 
-#define is_digit(ch_) (ch_ >= '0' && ch_ <= '9')
-
-#define is_hex_digit(ch_) \
-   ((ch_ >= '0' && ch_ <= '9') || \
-   ((ch_ & ~0x20)  >= 'A' && (ch_ & ~0x20) <= 'F'))
-
-#define is_hex_marker(ch_) ((ch_ & ~0x20) == 'X')
-
-#define is_numeric_marker(ch_) (ch_ == '#')
-
-#define is_entity_begin(ch_) (ch_ == '&')
-
-#define is_entity_terminator(ch_) (ch_ == ';')
-
 void decode(std::istream &in, std::ostream &out)
 {
   enum DECODE_STATE
@@ -230,7 +231,7 @@ void decode(std::istream &in, std::ostream &out)
         low = 0;
         high = html_entities_size - 1;
         // Is this a valid first character for an entity?
-        if (find_first_of(entity, ch, low, high))
+        if (is_valid_first_entity_char(ch) && find_first_of(entity, ch, low, high))
         {
           //Yes
           state = EXPECT_CHAR;
@@ -322,7 +323,7 @@ void decode(std::istream &in, std::ostream &out)
     case EXPECT_CHAR:
       {
         // Does this character is part of a valid entity?
-        if (find_first_of(entity, ch, low, high))
+        if (is_valid_entity_char(ch) && find_first_of(entity, ch, low, high))
         {
           entity += ch;
           // Get next char
