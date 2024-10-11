@@ -125,9 +125,10 @@ consteval auto create_index_list()
   return limits;
 };
 
+constexpr static auto initial_limits_for_binary_search = create_index_list();
+
 int find_first_of(int ch, int &low, int &high)
 {
-  constexpr auto limits = create_index_list();
   constexpr int offset_for_lowercase = 26 - 32;
 
   if (is_valid_first_entity_char(ch))
@@ -137,8 +138,8 @@ int find_first_of(int ch, int &low, int &high)
       ch += offset_for_lowercase;
     }
     ch -= 'A';
-    low = limits[ch];
-    high = limits[ch + 1] - 1;
+    low = initial_limits_for_binary_search[ch];
+    high = initial_limits_for_binary_search[ch + 1] - 1;
     return 1;
   }
   return 0;
