@@ -260,8 +260,6 @@ void decode(std::istream &in, std::ostream &out)
           // Get next char
           continue;
         }
-        low = 0;
-        high = html_entities_size - 1;
         // Is this a valid first character for an entity?
         if (find_first_of(ch, low, high))
         {
