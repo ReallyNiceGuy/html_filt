@@ -7,25 +7,55 @@
 
 using namespace std::literals;
 
-#define is_valid_first_entity_char(ch_) ((ch_ >= 'A' && ch_ <= 'Z') || (ch_ >= 'a' && ch_ <= 'z'))
+inline static constexpr int is_valid_first_entity_char(int ch)
+{
+  return ((ch >= 'A' && ch <= 'Z') ||
+          (ch >= 'a' && ch <= 'z'));
+}
 
-#define is_valid_entity_char(ch_) ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == ';')
+inline static constexpr int is_valid_entity_char(int ch)
+{
+  return ((ch >= '0' && ch <= '9') ||
+          (ch >= 'A' && ch <= 'Z') ||
+          (ch >= 'a' && ch <= 'z') ||
+           ch == ';');
+}
 
-#define is_digit(ch_) (ch_ >= '0' && ch_ <= '9')
+inline static constexpr int is_digit(int ch)
+{
+  return (ch >= '0' && ch <= '9');
+}
 
-#define is_hex_digit(ch_) \
-   ((ch_ >= '0' && ch_ <= '9') || \
-   ((ch_ & ~0x20)  >= 'A' && (ch_ & ~0x20) <= 'F'))
+inline static constexpr int is_hex_digit(int ch)
+{
+   return ((ch >= '0' && ch <= '9') ||
+           ((ch & ~0x20)  >= 'A' && (ch & ~0x20) <= 'F'));
+}
 
-#define is_hex_marker(ch_) ((ch_ & ~0x20) == 'X')
+inline static constexpr int is_hex_marker(int ch)
+{
+  return ((ch & ~0x20) == 'X');
+}
 
-#define is_numeric_marker(ch_) (ch_ == '#')
+inline static constexpr int is_numeric_marker(int ch)
+{
+  return (ch == '#');
+}
 
-#define is_entity_begin(ch_) (ch_ == '&')
+inline static constexpr int is_entity_begin(int ch)
+{
+  return (ch == '&');
+}
 
-#define is_entity_terminator(ch_) (ch_ == ';')
+inline static constexpr int is_entity_terminator(int ch)
+{
+  return (ch == ';');
+}
 
-#define is_lower_case(ch_) (ch_ & 0x20)
+inline static constexpr int is_lower_case(int ch)
+{
+  return (ch & 0x20);
+}
 
 
 constexpr int partial_compare(const std::string_view item, const std::string_view partial, int ch)
@@ -98,7 +128,7 @@ consteval auto create_index_list()
 int find_first_of(int ch, int &low, int &high)
 {
   constexpr auto limits = create_index_list();
-  const int offset_for_lowercase = 26 - 32;
+  constexpr int offset_for_lowercase = 26 - 32;
 
   if (is_valid_first_entity_char(ch))
   {
