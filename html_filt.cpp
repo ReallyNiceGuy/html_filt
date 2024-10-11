@@ -2,11 +2,12 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <array>
 #include "html_list.hpp"
 
 using namespace std::literals;
 
-#define is_valid_first_entity_char(ch_) ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+#define is_valid_first_entity_char(ch_) ((ch_ >= 'A' && ch_ <= 'Z') || (ch_ >= 'a' && ch_ <= 'z'))
 
 #define is_valid_entity_char(ch_) ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == ';')
 
@@ -23,6 +24,8 @@ using namespace std::literals;
 #define is_entity_begin(ch_) (ch_ == '&')
 
 #define is_entity_terminator(ch_) (ch_ == ';')
+
+#define is_lower_case(ch_) (ch_ & 0x20)
 
 
 constexpr int partial_compare(const std::string_view item, const std::string_view partial, int ch)
@@ -73,46 +76,39 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
   return 0; // target not found
 }
 
-constexpr int find_first_of(int ch, int &low, int &high)
+consteval auto create_index_list()
 {
-  constexpr auto partial = ""sv;
+  std::array<int, 53> limits;
+
+  int ch{-1};
+  int idx{0};
+  for(int i = 0; i < html_entities_size; ++i)
+  {
+    if (ch != html_entities[i].key[0])
+    {
+      limits[idx] = i;
+      ++idx;
+      ch = html_entities[i].key[0];
+    }
+  }
+  limits[52] = html_entities_size;
+  return limits;
+};
+
+int find_first_of(int ch, int &low, int &high)
+{
+  constexpr auto limits = create_index_list();
+  const int offset_for_lowercase = 26 - 32;
+
   if (is_valid_first_entity_char(ch))
   {
-    if (ch == 'a')
+    if (is_lower_case(ch))
     {
-      int tmp_high = high;
-      binary_search(partial, 'Z', low, tmp_high);
-      tmp_high = high;
-      high = low;
-      binary_search(partial, 'b', high, tmp_high);
+      ch += offset_for_lowercase;
     }
-    else if (ch == 'Z')
-    {
-      int tmp_high = high;
-      binary_search(partial, 'Y', low, tmp_high);
-      tmp_high = high;
-      high = low;
-      binary_search(partial, 'a', high, tmp_high);
-    }
-    else if (ch == 'z')
-    {
-      int tmp_high = high;
-      binary_search(partial, 'y', low, tmp_high);
-    }
-    else if (ch == 'A')
-    {
-      int tmp_high = high;
-      high = low;
-      binary_search(partial, 'B', high, tmp_high);
-    }
-    else
-    {
-      int tmp_high = high;
-      binary_search(partial, ch - 1, low, tmp_high);
-      tmp_high = high;
-      high = low;
-      binary_search(partial, ch + 1, high, tmp_high);
-    }
+    ch -= 'A';
+    low = limits[ch];
+    high = limits[ch + 1] - 1;
     return 1;
   }
   return 0;
