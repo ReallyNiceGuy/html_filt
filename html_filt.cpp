@@ -73,20 +73,11 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
   return 0; // target not found
 }
 
-constexpr int find_first_of(const std::string_view partial, int ch, int &low, int &high)
+constexpr int find_first_of(int ch, int &low, int &high)
 {
-  // If limits are the same
-  if (low == high)
+  constexpr auto partial = ""sv;
+  if (is_valid_first_entity_char(ch))
   {
-    // Just compare the last character of the entity, everything else already matched before
-    return html_entities[low].key.size() > partial.size() && html_entities[low].key[partial.size()] == ch;
-  }
-  // Find better limits for the first character
-  // This mimimizes searches on the binary_search algorithm later on
-  if (partial.size() == 0)
-  {
-    // Must start with a alphabetical character
-    if (ch < 'A') return 0;
     if (ch == 'a')
     {
       int tmp_high = high;
@@ -124,23 +115,37 @@ constexpr int find_first_of(const std::string_view partial, int ch, int &low, in
     }
     return 1;
   }
+  return 0;
+}
 
-  int new_low = low;
-  if (binary_search(partial, ch, new_low, high))
+constexpr int find_first_of(const std::string_view partial, int ch, int &low, int &high)
+{
+  if (is_valid_entity_char(ch))
   {
-    // Found a target element
-    int new_high{new_low - 1};
-    int maybe_low{low};
-    // Only try to find a lower one if the limits are different
-    while (new_low != high && binary_search(partial, ch, maybe_low, new_high))
+    // If limits are the same
+    if (low == high)
     {
-      // Found another target element, lower in the list
-      new_low = maybe_low;
-      new_high = maybe_low - 1;
-      maybe_low = low;
+      // Just compare the last character of the entity, everything else already matched before
+      return html_entities[low].key.size() > partial.size() && html_entities[low].key[partial.size()] == ch;
     }
-    low = new_low;
-    return 1;
+
+    int new_low = low;
+    if (binary_search(partial, ch, new_low, high))
+    {
+      // Found a target element
+      int new_high{new_low - 1};
+      int maybe_low{low};
+      // Only try to find a lower one if the limits are different
+      while (new_low != high && binary_search(partial, ch, maybe_low, new_high))
+      {
+        // Found another target element, lower in the list
+        new_low = maybe_low;
+        new_high = maybe_low - 1;
+        maybe_low = low;
+      }
+      low = new_low;
+      return 1;
+    }
   }
   return 0;
 }
@@ -231,7 +236,7 @@ void decode(std::istream &in, std::ostream &out)
         low = 0;
         high = html_entities_size - 1;
         // Is this a valid first character for an entity?
-        if (is_valid_first_entity_char(ch) && find_first_of(entity, ch, low, high))
+        if (find_first_of(ch, low, high))
         {
           //Yes
           state = EXPECT_CHAR;
@@ -323,7 +328,7 @@ void decode(std::istream &in, std::ostream &out)
     case EXPECT_CHAR:
       {
         // Does this character is part of a valid entity?
-        if (is_valid_entity_char(ch) && find_first_of(entity, ch, low, high))
+        if (find_first_of(entity, ch, low, high))
         {
           entity += ch;
           // Get next char
