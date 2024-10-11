@@ -9,15 +9,13 @@ using namespace std::literals;
 
 inline static constexpr int is_valid_first_entity_char(int ch)
 {
-  return ((ch >= 'A' && ch <= 'Z') ||
-          (ch >= 'a' && ch <= 'z'));
+  return ((ch & ~0x20) >= 'A' && (ch & ~0x20) <= 'Z');
 }
 
 inline static constexpr int is_valid_entity_char(int ch)
 {
   return ((ch >= '0' && ch <= '9') ||
-          (ch >= 'A' && ch <= 'Z') ||
-          (ch >= 'a' && ch <= 'z') ||
+          ((ch & ~0x20) >= 'A' && (ch & ~0x20) <= 'Z') ||
            ch == ';');
 }
 
