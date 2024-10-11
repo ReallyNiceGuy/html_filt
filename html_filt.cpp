@@ -7,15 +7,23 @@
 
 using namespace std::literals;
 
+static constexpr int LOWER_CASE_BIT{1<<5};
+static constexpr int MAX_VALID_CODEPOINT{0x10ffff};
+
+inline static constexpr int ucase(int ch)
+{
+  return ch & ~LOWER_CASE_BIT;
+}
+
 inline static constexpr int is_valid_first_entity_char(int ch)
 {
-  return ((ch & ~0x20) >= 'A' && (ch & ~0x20) <= 'Z');
+  return (ucase(ch)>= 'A' && ucase(ch) <= 'Z');
 }
 
 inline static constexpr int is_valid_entity_char(int ch)
 {
   return ((ch >= '0' && ch <= '9') ||
-          ((ch & ~0x20) >= 'A' && (ch & ~0x20) <= 'Z') ||
+          (ucase(ch) >= 'A' && ucase(ch) <= 'Z') ||
            ch == ';');
 }
 
@@ -27,12 +35,12 @@ inline static constexpr int is_digit(int ch)
 inline static constexpr int is_hex_digit(int ch)
 {
    return ((ch >= '0' && ch <= '9') ||
-           ((ch & ~0x20)  >= 'A' && (ch & ~0x20) <= 'F'));
+           (ucase(ch)  >= 'A' && ucase(ch) <= 'F'));
 }
 
 inline static constexpr int is_hex_marker(int ch)
 {
-  return ((ch & ~0x20) == 'X');
+  return (ucase(ch) == 'X');
 }
 
 inline static constexpr int is_numeric_marker(int ch)
@@ -52,7 +60,7 @@ inline static constexpr int is_entity_terminator(int ch)
 
 inline static constexpr int is_lower_case(int ch)
 {
-  return (ch & 0x20);
+  return (ch & LOWER_CASE_BIT);
 }
 
 
@@ -177,7 +185,7 @@ constexpr int find_first_of(const std::string_view partial, int ch, int &low, in
 
 void unicode_to_utf8(char32_t codepoint, std::ostream& out)
 {
-  if (codepoint > 0x10ffff)
+  if (codepoint > MAX_VALID_CODEPOINT)
   {
     out << "\ufffd"sv;
     return;
