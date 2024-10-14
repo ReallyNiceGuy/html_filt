@@ -404,49 +404,111 @@ void decode(std::istream &in, std::ostream &out)
 
 void usage(std::ostream &out, std::string_view app)
 {
-  out << "Usage:\n  " << app << " [infile [outfile]]\n";
+  out << "Usage:\n  " << app << " [-i infile] [-o outfile] [-h]\n";
 }
 
 int main(int argc, char** argv) 
 {
-  if (argc == 1)
+  std::ios_base::sync_with_stdio(false);
+  enum CMDLINE_STATE
   {
-      decode(std::cin, std::cout);
-  }
-  else if (argc == 2 || argc == 3)
+    DEFAULT,
+    EXPECT_IN_FILE,
+    EXPECT_OUT_FILE,
+  } state { DEFAULT };
+
+  std::string infile;
+  std::string outfile;
+  for (int i = 1; i < argc; ++i)
   {
-    if ("-h"sv ==  argv[1] || (argc == 3 && "-h"sv == argv[2]))
+    switch (state)
     {
-      usage(std::cout, argv[0]);
-      return 0;
-    }
-    auto in = std::ifstream(argv[1]);
-    if (in.good())
-    {
-      if (argc == 3)
+    case DEFAULT:
+      if (strcmp(argv[i], "-h") == 0)
       {
-        std::ofstream out(argv[2]);
-        if (!out.good())
+        usage(std::cout, argv[0]);
+        return 0;
+      }
+      else if (strcmp(argv[i], "-i") == 0)
+      {
+        if (infile.size())
         {
-          std::cerr  << argv[0] << ": " <<argv[2] << ": " << std::strerror(errno) << "\n";
-          return 2;
+          std::cerr << "Multiple input files specified\n";
+          usage(std::cerr, argv[0]);
+          exit(-1);
         }
-        decode(in, out);
+        state = EXPECT_IN_FILE;
+      }
+      else if (strcmp(argv[i], "-o") == 0)
+      {
+        if (outfile.size())
+        {
+          std::cerr << "Multiple output files specified\n";
+          usage(std::cerr, argv[0]);
+          exit(-1);
+        }
+        state = EXPECT_OUT_FILE;
       }
       else
-        decode(in, std::cout);
-    }
-    else
-    {
-      std::cerr  << argv[0] << ": " <<argv[1] << ": " << std::strerror(errno) << "\n";
-      return 1;
+      {
+        std::cerr << "Unknown parameter: "<< argv[i] << "\n";
+        usage(std::cerr, argv[0]);
+        exit(-1);
+      }
+      break;
+    case EXPECT_IN_FILE:
+      infile = argv[i];
+      state = DEFAULT;
+      break;
+    case EXPECT_OUT_FILE:
+      outfile = argv[i];
+      state = DEFAULT;
+      break;
     }
   }
-  else
+  if (state == EXPECT_IN_FILE)
   {
-    std::cerr  << argv[0] << ": Too many parameters\n\n";
+    std::cerr << "Missing input file\n";
     usage(std::cerr, argv[0]);
-    return 3;
+    exit(-1);
   }
+  if (state == EXPECT_OUT_FILE)
+  {
+    std::cerr << "Missing output file\n";
+    usage(std::cerr, argv[0]);
+    exit(-1);
+  }
+
+
+  std::ifstream in;
+  std::ofstream out;
+
+
+  if (infile.size())
+  {
+    in.open(infile);
+    if (!in.good())
+    {
+      std::cerr  << argv[0] << ": " << infile << ": " << std::strerror(errno) << "\n";
+      exit(1);
+    }
+  }
+
+  if (outfile.size())
+  {
+    out.open(outfile);
+    if (!out.good())
+    {
+      std::cerr  << argv[0] << ": " << outfile << ": " << std::strerror(errno) << "\n";
+      exit(2);
+    }
+  }
+
+  std::istream *in_ptr = in.is_open() ? &in : &std::cin;
+  std::ostream *out_ptr = out.is_open() ? &out : &std::cout;
+
+  decode(*in_ptr, *out_ptr);
+  if (in.is_open()) in.close();
+  if (out.is_open()) out.close();
   return 0;
 }
