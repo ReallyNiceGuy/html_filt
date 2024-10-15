@@ -215,7 +215,7 @@ void unicode_to_utf8(char32_t codepoint, std::ostream& out)
   }
 }
 
-void insert_decimal_entity_into_result(const std::string& codepoint, std::ostream& out)
+void output_decimal_entity(const std::string& codepoint, std::ostream& out)
 {
   char32_t i{0xffffff};
   if (codepoint.size() < 8)
@@ -225,7 +225,7 @@ void insert_decimal_entity_into_result(const std::string& codepoint, std::ostrea
   unicode_to_utf8(i, out);
 }
 
-void insert_hex_entity_into_result(const std::string& codepoint, std::ostream& out)
+void output_hex_entity(const std::string& codepoint, std::ostream& out)
 {
   char32_t i{0xffffff};
   if (codepoint.size() < 6)
@@ -315,7 +315,7 @@ void decode(std::istream &in, std::ostream &out)
         }
         // Not a digit, finish processing of the decimal entity
         state = DEFAULT;
-        insert_decimal_entity_into_result(entity, out);
+        output_decimal_entity(entity, out);
         if (is_entity_terminator(ch))
         {
           // Get next char
@@ -338,7 +338,7 @@ void decode(std::istream &in, std::ostream &out)
         if (entity.size())
         {
           // Yes
-          insert_hex_entity_into_result(entity, out);
+          output_hex_entity(entity, out);
           if (is_entity_terminator(ch))
           {
             // Get next char
