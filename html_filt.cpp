@@ -384,7 +384,7 @@ void decode(std::istream &in, std::ostream &out)
       break;
     case DEFAULT:
       // Do nothing here, it is taken care below
-      break;
+      ;
     }
 
     if (ch == std::istream::traits_type::eof()) break;
