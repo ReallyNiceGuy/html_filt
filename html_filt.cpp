@@ -309,7 +309,6 @@ void decode(std::istream &in, std::ostream &out)
       {
         if (is_digit(ch))
         {
-          state = EXPECT_DIGIT;
           entity += ch;
           // Get next char
           continue;
