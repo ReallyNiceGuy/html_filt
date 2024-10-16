@@ -125,7 +125,15 @@ consteval auto create_index_list()
       limits[idx] = i;
       ++idx;
       ch = html_entities[i].key[0];
+      if (!is_valid_first_entity_char(ch))
+      {
+        throw "html_entities contains an entry with invalid starting character";
+      }
     }
+  }
+  if (idx < 52)
+  {
+    throw "html_entities is missing entries";
   }
   limits[52] = html_entities_size;
   return limits;
