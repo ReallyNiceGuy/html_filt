@@ -141,19 +141,23 @@ consteval auto create_index_list()
 
 constexpr static auto initial_limits_for_binary_search = create_index_list();
 
+constexpr inline static int index_from_char(int ch)
+{
+  if (is_lower_case(ch))
+  {
+    ch = ucase(ch) + 26;
+  }
+  ch -= 'A';
+  return ch;
+}
+
 int find_first_of(int ch, int &low, int &high)
 {
-  constexpr int offset_for_lowercase = 26 - 32;
-
   if (is_valid_first_entity_char(ch))
   {
-    if (is_lower_case(ch))
-    {
-      ch += offset_for_lowercase;
-    }
-    ch -= 'A';
-    low = initial_limits_for_binary_search[ch];
-    high = initial_limits_for_binary_search[ch + 1] - 1;
+    auto idx = index_from_char(ch);
+    low = initial_limits_for_binary_search[idx];
+    high = initial_limits_for_binary_search[idx + 1] - 1;
     return 1;
   }
   return 0;
