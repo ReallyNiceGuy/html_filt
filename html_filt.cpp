@@ -112,8 +112,21 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
   return 0; // target not found
 }
 
+consteval int is_html_entities_ordered()
+{
+  for(int i=1;i<html_entities_size;++i)
+  {
+    if (html_entities[i].key < html_entities[i-1].key) return 0;
+  }
+  return 1;
+}
+
 consteval auto create_index_list()
 {
+  if (!is_html_entities_ordered())
+  {
+    throw "html_entities is not aphabetically ordered";
+  }
   std::array<int, 53> limits;
 
   int ch{-1};
