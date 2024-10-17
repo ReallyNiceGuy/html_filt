@@ -68,6 +68,11 @@ inline static constexpr int is_lower_case(int ch)
   return (ch & LOWER_CASE_BIT);
 }
 
+static inline void puts(std::ostream& out, const std::string_view str)
+{
+  for(auto&& ch: str)
+    out.put(ch);
+}
 
 constexpr int partial_compare(const std::string_view item, const std::string_view partial, int ch)
 {
@@ -217,31 +222,31 @@ void unicode_to_utf8(char32_t codepoint, std::ostream& out)
 {
   if (codepoint > MAX_VALID_CODEPOINT)
   {
-    out << "\ufffd"sv;
+    puts(out, "\ufffd"sv);
     return;
   }
 
   if (codepoint <= 0x7f)
   {
-    out << static_cast<char>(codepoint);
+    out.put(static_cast<char>(codepoint));
   }
   else if (codepoint <= 0x7ff)
   {
-    out << static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f));
-    out << static_cast<char>(0x80 | (codepoint & 0x3f));
+    out.put(static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f)));
+    out.put(static_cast<char>(0x80 | (codepoint & 0x3f)));
   }
   else if (codepoint <= 0xffff)
   {
-    out << static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f));
-    out << static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f));
-    out << static_cast<char>(0x80 | (codepoint & 0x3f));
+    out.put(static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f)));
+    out.put(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+    out.put(static_cast<char>(0x80 | (codepoint & 0x3f)));
   }
   else
   {
-    out << static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07));
-    out << static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f));
-    out << static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f));
-    out << static_cast<char>(0x80 | (codepoint & 0x3f));
+    out.put(static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07)));
+    out.put(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+    out.put(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+    out.put(static_cast<char>(0x80 | (codepoint & 0x3f)));
   }
 }
 
@@ -302,7 +307,7 @@ void decode(std::istream &in, std::ostream &out)
         // Invalid character
         state = DEFAULT;
         // Just copy the original content into result
-        out << header;
+        puts(out, header);
         // Process this character at the end
       }
       break;
@@ -325,7 +330,7 @@ void decode(std::istream &in, std::ostream &out)
         // Invalid character
         state = DEFAULT;
         // Just copy the original content into result
-        out << header;
+        puts(out, header);
         // Process this character at the end
       }
       break;
@@ -390,7 +395,7 @@ void decode(std::istream &in, std::ostream &out)
         {
           // No
           // Just copy the original content into the result
-          out << header;
+          puts(out, header);
           // Process this character at the end
         }
       }
@@ -409,14 +414,14 @@ void decode(std::istream &in, std::ostream &out)
         if (html_entities[low].key.size() != entity.size()) // No
         {
           // Just copy the original content into the result
-          out << header;
-          out << entity;
+          puts(out, header);
+          puts(out, entity);
           // Process this character at the end
         }
         else // Yes
         {
           // Insert the entity into the result
-          out << html_entities[low].value;
+          puts(out, html_entities[low].value);
           // Process this character at the end
         }
       }
@@ -436,7 +441,7 @@ void decode(std::istream &in, std::ostream &out)
       continue;
     }
     // Just a character, insert it on the result
-    out << static_cast<char>(ch);
+    out.put(static_cast<char>(ch));
   }
 }
 
