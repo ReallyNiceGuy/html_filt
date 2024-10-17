@@ -164,7 +164,7 @@ constexpr inline static int index_from_char(int ch)
   return ch;
 }
 
-int find_first_of(int ch, int &low, int &high)
+constexpr int find_first_of(int ch, int &low, int &high)
 {
   if (is_valid_first_entity_char(ch))
   {
@@ -391,7 +391,7 @@ void decode(std::istream &in, std::ostream &out)
         }
         state = DEFAULT;
         // Is this entity complete?
-        if (html_entities[low].key != entity) // No
+        if (html_entities[low].key.size() != entity.size()) // No
         {
           // Just copy the original content into the result
           out << header;
