@@ -3,12 +3,17 @@
 #include <fstream>
 #include <cstring>
 #include <array>
+#include <cmath>
 #include "html_list.hpp"
 
 using namespace std::literals;
 
 static constexpr int LOWER_CASE_BIT{1<<5};
 static constexpr int MAX_VALID_CODEPOINT{0x10ffff};
+
+// Round up and give 1 char for a leading 0
+static constexpr int MAX_DECIMAL_LEN = std::ceil(std::log10(MAX_VALID_CODEPOINT)) + 1;
+static constexpr int MAX_HEX_LEN = std::ceil(std::log(MAX_VALID_CODEPOINT)/log(16)) + 1;
 
 inline static constexpr int ucase(int ch)
 {
@@ -242,21 +247,15 @@ void unicode_to_utf8(char32_t codepoint, std::ostream& out)
 
 void output_decimal_entity(const std::string& codepoint, std::ostream& out)
 {
-  char32_t i{0xffffff};
-  if (codepoint.size() < 8)
-  {
-    i = std::stoi(codepoint, nullptr, 10);
-  }
+  char32_t i{};
+  i = std::stoi(codepoint, nullptr, 10);
   unicode_to_utf8(i, out);
 }
 
 void output_hex_entity(const std::string& codepoint, std::ostream& out)
 {
-  char32_t i{0xffffff};
-  if (codepoint.size() < 6)
-  {
-    i = std::stoi(codepoint, nullptr, 16);
-  }
+  char32_t i{};
+  i = std::stoi(codepoint, nullptr, 16);
   unicode_to_utf8(i, out);
 }
 
@@ -334,7 +333,15 @@ void decode(std::istream &in, std::ostream &out)
       {
         if (is_digit(ch))
         {
-          entity += ch;
+          // Ignore a run of zeros at the beginning
+          if (!(entity.size() == 1 && entity[0] == '0' && ch == '0'))
+          {
+            // This will avoid unbounded memory usage
+            if ( entity.size() < MAX_DECIMAL_LEN)
+            {
+              entity += ch;
+            }
+          }
           // Get next char
           continue;
         }
@@ -353,7 +360,15 @@ void decode(std::istream &in, std::ostream &out)
       {
         if (is_hex_digit(ch))
         {
-          entity += ch;
+          // Ignore a run of zeros at the beginning
+          if (!(entity.size() == 1 && entity[0] == '0' && ch == '0'))
+          {
+            // This will avoid unbounded memory usage
+            if ( entity.size() < MAX_HEX_LEN)
+            {
+              entity += ch;
+            }
+          }
           // Get next char
           continue;
         }
@@ -416,8 +431,7 @@ void decode(std::istream &in, std::ostream &out)
     {
       state = EXPECT_NUMERIC_MARKER_OR_CHAR;
       entity.clear();
-      header.clear();
-      header += ch;
+      header = ch;
       // Get next char
       continue;
     }
