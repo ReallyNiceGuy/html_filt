@@ -5,10 +5,78 @@
 #include <fstream>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 #include <boost/format.hpp>
 #include "html_list.hpp"
 
 using namespace std::literals;
+
+static constexpr int LOWER_CASE_BIT{1<<5};
+static constexpr int MAX_VALID_CODEPOINT{0x10ffff};
+
+// Round up and give 1 char for a leading 0
+static constexpr int MAX_DECIMAL_LEN = std::ceil(std::log10(MAX_VALID_CODEPOINT)) + 1;
+static constexpr int MAX_HEX_LEN = std::ceil(std::log(MAX_VALID_CODEPOINT)/log(16)) + 1;
+
+inline static constexpr int ucase(int ch)
+{
+  return ch & ~LOWER_CASE_BIT;
+}
+
+inline static constexpr int is_valid_first_entity_char(int ch)
+{
+  return (ucase(ch)>= 'A' && ucase(ch) <= 'Z');
+}
+
+inline static constexpr int is_valid_entity_char(int ch)
+{
+  return ((ch >= '0' && ch <= '9') ||
+          (ucase(ch) >= 'A' && ucase(ch) <= 'Z') ||
+           ch == ';');
+}
+
+inline static constexpr int is_digit(int ch)
+{
+  return (ch >= '0' && ch <= '9');
+}
+
+inline static constexpr int is_hex_digit(int ch)
+{
+   return ((ch >= '0' && ch <= '9') ||
+           (ucase(ch)  >= 'A' && ucase(ch) <= 'F'));
+}
+
+inline static constexpr int is_hex_marker(int ch)
+{
+  return (ucase(ch) == 'X');
+}
+
+inline static constexpr int is_numeric_marker(int ch)
+{
+  return (ch == '#');
+}
+
+inline static constexpr int is_entity_begin(int ch)
+{
+  return (ch == '&');
+}
+
+inline static constexpr int is_entity_terminator(int ch)
+{
+  return (ch == ';');
+}
+
+inline static constexpr int is_lower_case(int ch)
+{
+  return (ch & LOWER_CASE_BIT);
+}
+
+static inline void puts(std::ostream& out, const std::string_view str)
+{
+  for(auto&& ch: str)
+    out.put(ch);
+}
+
 struct Node;
 std::ostream& dump_map(std::ostream& out, const std::map<char, Node>& the_map, int indent=0);
 std::ostream& dump_node(std::ostream& out, const Node& node, int indent=0);
@@ -94,11 +162,14 @@ std::vector<Node> create_search_vector_of_nodes();
 
 static const std::vector<Node> html_entities_vector_of_nodes = create_search_vector_of_nodes();
 
-int ch_to_idx(const char ch)
+constexpr inline static int index_from_char(int ch)
 {
-  int base = (ch & ~0x20) - 'A';
-  if (base < 0 || base > 25) return -1;
-  return base + (((ch & 0x20) >> 5) * 26);
+  if (is_lower_case(ch))
+  {
+    ch = ucase(ch) + 26;
+  }
+  ch -= 'A';
+  return ch;
 }
 
 std::vector<Node> create_search_vector_of_nodes()
@@ -108,7 +179,7 @@ std::vector<Node> create_search_vector_of_nodes()
   {
     const auto first_char = item.key[0];
 
-    auto result = &root[ch_to_idx(first_char)];
+    auto result = &root[index_from_char(first_char)];
     for(std::size_t i = 1; item.key[i] != 0; ++i)
     {
         const auto ch = item.key[i];
@@ -121,69 +192,49 @@ std::vector<Node> create_search_vector_of_nodes()
 
 void unicode_to_utf8(char32_t codepoint, std::ostream& out)
 {
-  if (codepoint > 0x10ffff)
+  if (codepoint > MAX_VALID_CODEPOINT)
   {
-    out << "\ufffd"sv;
+    puts(out, "\ufffd"sv);
     return;
   }
 
   if (codepoint <= 0x7f)
   {
-    out << static_cast<char>(codepoint);
+    out.put(static_cast<char>(codepoint));
   }
   else if (codepoint <= 0x7ff)
   {
-    out << static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f));
-    out << static_cast<char>(0x80 | (codepoint & 0x3f));
+    out.put(static_cast<char>(0xc0 | ((codepoint >> 6) & 0x1f)));
+    out.put(static_cast<char>(0x80 | (codepoint & 0x3f)));
   }
   else if (codepoint <= 0xffff)
   {
-    out << static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f));
-    out << static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f));
-    out << static_cast<char>(0x80 | (codepoint & 0x3f));
+    out.put(static_cast<char>(0xe0 | ((codepoint >> 12) & 0x0f)));
+    out.put(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+    out.put(static_cast<char>(0x80 | (codepoint & 0x3f)));
   }
   else
   {
-    out << static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07));
-    out << static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f));
-    out << static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f));
-    out << static_cast<char>(0x80 | (codepoint & 0x3f));
+    out.put(static_cast<char>(0xf0 | ((codepoint >> 18) & 0x07)));
+    out.put(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+    out.put(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+    out.put(static_cast<char>(0x80 | (codepoint & 0x3f)));
   }
 }
 
 void output_decimal_entity(const std::string& codepoint, std::ostream& out)
 {
-  char32_t i{0xffffff};
-  if (codepoint.size() < 8)
-  {
-    i = std::stoi(codepoint, nullptr, 10);
-  }
+  char32_t i{};
+  i = std::stoi(codepoint, nullptr, 10);
   unicode_to_utf8(i, out);
 }
 
 void output_hex_entity(const std::string& codepoint, std::ostream& out)
 {
-  char32_t i{0xffffff};
-  if (codepoint.size() < 6)
-  {
-    i = std::stoi(codepoint, nullptr, 16);
-  }
+  char32_t i{};
+  i = std::stoi(codepoint, nullptr, 16);
   unicode_to_utf8(i, out);
 }
-
-#define is_digit(ch_) (ch_ >= '0' && ch_ <= '9')
-
-#define is_hex_digit(ch_) \
-   ((ch_ >= '0' && ch_ <= '9') || \
-   ((ch_ & ~0x20)  >= 'A' && (ch_ & ~0x20) <= 'F'))
-
-#define is_hex_marker(ch_) ((ch_ & ~0x20) == 'X')
-
-#define is_numeric_marker(ch_) (ch_ == '#')
-
-#define is_entity_begin(ch_) (ch_ == '&')
-
-#define is_entity_terminator(ch_) (ch_ == ';')
 
 void decode(std::istream &in, std::ostream &out)
 {
@@ -215,22 +266,21 @@ void decode(std::istream &in, std::ostream &out)
           // Get next char
           continue;
         }
-        auto ch_idx = ch_to_idx(ch);
         // Is this a valid first character for an entity?
-        if (ch_idx != -1)
+        if (is_valid_first_entity_char(ch))
         {
           //Yes
           state = EXPECT_CHAR;
           entity += ch;
           // Make search_point the corresponding Node for this block of entities
-          search_point = &html_entities_vector_of_nodes[ch_idx];
+          search_point = &html_entities_vector_of_nodes[index_from_char(ch)];
           // Get next char
           continue;
         }
         // Invalid character
         state = DEFAULT;
         // Just copy the original content into result
-        out << header;
+        puts(out, header);
         // Process this character at the end
       }
       break;
@@ -253,7 +303,7 @@ void decode(std::istream &in, std::ostream &out)
         // Invalid character
         state = DEFAULT;
         // Just copy the original content into result
-        out << header;
+        puts(out, header);
         // Process this character at the end
       }
       break;
@@ -261,7 +311,15 @@ void decode(std::istream &in, std::ostream &out)
       {
         if (is_digit(ch))
         {
-          entity += ch;
+          // Ignore a run of zeros at the beginning
+          if (!(entity.size() == 1 && entity[0] == '0' && ch == '0'))
+          {
+            // This will avoid unbounded memory usage
+            if ( entity.size() < MAX_DECIMAL_LEN)
+            {
+              entity += ch;
+            }
+          }
           // Get next char
           continue;
         }
@@ -280,7 +338,15 @@ void decode(std::istream &in, std::ostream &out)
       {
         if (is_hex_digit(ch))
         {
-          entity += ch;
+          // Ignore a run of zeros at the beginning
+          if (!(entity.size() == 1 && entity[0] == '0' && ch == '0'))
+          {
+            // This will avoid unbounded memory usage
+            if ( entity.size() < MAX_HEX_LEN)
+            {
+              entity += ch;
+            }
+          }
           // Get next char
           continue;
         }
@@ -302,7 +368,7 @@ void decode(std::istream &in, std::ostream &out)
         {
           // No
           // Just copy the original content into the result
-          out << header;
+          puts(out, header);
           // Process this character at the end
         }
       }
@@ -324,14 +390,14 @@ void decode(std::istream &in, std::ostream &out)
         if (search_point->value == nullptr) // No
         {
           // Just copy the original content into the result
-          out << header;
-          out << entity;
+          puts(out, header);
+          puts(out, entity);
           // Process this character at the end
         }
         else // Yes
         {
           // Insert the entity into the result
-          out << search_point->value;
+          puts(out, search_point->value);
           // Process this character at the end
         }
       }
@@ -346,13 +412,12 @@ void decode(std::istream &in, std::ostream &out)
     {
       state = EXPECT_NUMERIC_MARKER_OR_CHAR;
       entity.clear();
-      header.clear();
-      header += ch;
+      header = ch;
       // Get next char
       continue;
     }
     // Just a character, insert it on the result
-    out << static_cast<char>(ch);
+    out.put(static_cast<char>(ch));
   }
 }
 
