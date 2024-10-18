@@ -92,12 +92,12 @@ constexpr int binary_search(const std::string_view partial, int ch, int &orig_lo
 {
   // It is very likely that the item is the first one
   // test it first
-  if (orig_low <= orig_high && partial_compare(html_entities[orig_low].key, partial, ch) == 0)
+  if (orig_low < orig_high && partial_compare(html_entities[orig_low].key, partial, ch) == 0)
   {
     return 1;
   }
 
-  int low = orig_low;
+  int low = orig_low + 1;
   int high = orig_high;
 
   while (low <= high) {
@@ -204,7 +204,7 @@ constexpr int find_first_of(const std::string_view partial, int ch, int &low, in
       int new_high{new_low - 1};
       int maybe_low{low};
       // Only try to find a lower one if the limits are different
-      while (new_low != high && binary_search(partial, ch, maybe_low, new_high))
+      while (maybe_low != new_high && binary_search(partial, ch, maybe_low, new_high))
       {
         // Found another target element, lower in the list
         new_low = maybe_low;
